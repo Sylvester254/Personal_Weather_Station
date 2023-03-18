@@ -1,68 +1,5 @@
-import network
-import socket
-from time import sleep
-import gc
-gc.collect()
-from machine import Pin, ADC, I2C 
-from PicoDHT22 import PicoDHT22
-from bmp085 import BMP180
-import time
-import utime
-
-ssid = "4G MIFI_F19" #Your network name
-password = "1234567890" #Your WiFi password
-
-led_onboard = Pin("LED", Pin.OUT)
-i2c = I2C(0, sda = Pin(16), scl = Pin(17), freq = 1000000)
-
-#Connect to WLAN
-wlan = network.WLAN(network.STA_IF)
-wlan.active(True)
-wlan.connect(ssid, password)
-while wlan.isconnected() == False:
-    led_onboard.value(1)
-    print('Connecting...')
-    sleep(1)
-ip = wlan.ifconfig()[0]
-print('Connection successful')
-print(f'Connected on {ip}')
-led_onboard.value(0)
-
-def web_page():
-
-    # init DHT22 on Pin 2(GPIO2)
-    dht22 = PicoDHT22(Pin(2, Pin.IN, Pin.PULL_UP))
-    led_onboard = Pin("LED", Pin.OUT)
-    i2c = I2C(0, scl=Pin(17), sda=Pin(16), freq=100000)
-    Raindrop_AO = ADC(0)        # ADC0 multiplexing pin is GP26 
-
-    T, H = dht22.read()
-    
-    bmp = BMP180(i2c)
-    bmp.oversample = 2
-    bmp.sealevel = 101325
-    
-    temp = bmp.temperature
-    press = bmp.pressure
-    altitude = bmp.altitude
-    temp_f= (temp * (9/5) + 32)
-    pressure = "{:.2f}".format(press)
-    alti = "{:.2f}".format(altitude)
-    
-    avg_temp = (T + temp)/2
-    avg_temp_f= (avg_temp * (9/5) + 32)
-    
-    adc_Raindrop = Raindrop_AO.read_u16()
-    if adc_Raindrop >= 30000:
-        status = 'No rain'
-    elif adc_Raindrop >= 10000:
-        status = 'Light rain'
-    else:
-        status = 'Heavy rain'
-    
-
-#HTML CODE  
-    html = """<html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 
 <head>
     <title>Rasp. Pico W Web Server</title>
@@ -178,30 +115,4 @@ def web_page():
     </div>
 </body>
 
-</html>"""
-    return html
-
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.bind(('', 80))
-s.listen(5)
-
-while True:
-  try:
-    if gc.mem_free() < 102000:
-      gc.collect()
-    conn, addr = s.accept()
-    conn.settimeout(3.0)
-    print('Got a connection from %s' % str(addr))
-    request = conn.recv(1024)
-    conn.settimeout(None)
-    request = str(request)
-    print('Content = %s' % request)
-    response = web_page()
-    conn.send('HTTP/1.1 200 OK\n')
-    conn.send('Content-Type: text/html\n')
-    conn.send('Connection: close\n\n')
-    conn.sendall(response)
-    conn.close()
-  except OSError as e:
-    conn.close()
-    print('Connection closed')
+</html>
