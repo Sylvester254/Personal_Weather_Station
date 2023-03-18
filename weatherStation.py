@@ -92,10 +92,10 @@ if __name__ == '__main__':
         adc_Raindrop = rain_val
         
         print('**********RAINDROP************')
-        if adc_Raindrop >= 40000:
+        if adc_Raindrop >= 30000:
             print('No rain')
             print(adc_Raindrop)
-        elif adc_Raindrop >= 25000:
+        elif adc_Raindrop >= 10000:
             print('Light rain')
             print(adc_Raindrop)
         else:

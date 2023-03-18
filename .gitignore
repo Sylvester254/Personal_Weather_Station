@@ -14,4 +14,122 @@
 
 The main change is in the altitude() method, where we first get the temperature from the temperature() method and use it to calculate the altitude with the pow() function from the math module. This formula takes into account the variation in pressure with temperature, assuming a standard atmosphere. 
 
-i need to read and display values for all the three functions once every 5 seconds:
+
+def temp():
+    # init DHT22 on Pin 2(GPIO2)
+    dht22 = PicoDHT22(Pin(2, Pin.IN, Pin.PULL_UP))
+    while True:
+        T, H = dht22.read()
+        #time.sleep(10)
+        return T, H
+
+def pressure():
+    led_onboard = Pin("LED", Pin.OUT)
+    i2c = I2C(0, scl=Pin(17), sda=Pin(16), freq=100000)
+
+    while True:
+        #Sensor Configuration
+        bmp = BMP180(i2c)
+        bmp.oversample = 2
+        bmp.sealevel = 101325
+        
+        temp = bmp.temperature
+        press = bmp.pressure
+        altitude = bmp.altitude
+        temp_f= (temp * (9/5) + 32)
+        pressure = "{:.2f}".format(press)
+        alti = "{:.2f}".format(altitude)
+        
+        #time.sleep(10)
+        return temp, temp_f, press, altitude
+ 
+def rain():
+    Raindrop_AO = ADC(0)        # ADC0 multiplexing pin is GP26               
+    while True:
+        adc_Raindrop = Raindrop_AO.read_u16()
+        
+        #time.sleep(10)
+        return adc_Raindrop
+
+        
+    """
+    while True:
+        # Get current time in seconds since the Epoch
+        #now = utime.time()
+        # Convert to a tuple of (year, month, day, hour, minute, second, weekday, yearday)
+        #time_tuple = utime.gmtime(now)
+        # Format the time as a string
+        #time_str = "{:04}-{:02}-{:02} {:02}:{:02}:{:02}".format(time_tuple[0], time_tuple[1], time_tuple[2], time_tuple[3], time_tuple[4], time_tuple[5])
+        
+        temp_val = temp()
+        pressure_val = pressure()
+        rain_val = rain()
+        
+        hum = temp_val[1]
+        avg_temp = (temp_val[0] + pressure_val[0])/2
+        avg_temp_f= (avg_temp * (9/5) + 32)
+        press = pressure_val[2]
+        alti = pressure_val[3]
+        
+        adc_Raindrop = rain_val
+        
+        if adc_Raindrop >= 40000:
+            status = 'No rain'
+        elif adc_Raindrop >= 25000:
+            status = 'Light rain'
+        else:
+            status = 'Heavy rain'
+        #time.sleep(10)  # wait for 10 seconds before reading again
+    """
+    
+    #HTML CODE  
+    html = """<html>
+    <head>
+  <title>Raspberry Pico W Web Server</title>
+  <meta http-equiv="refresh" content="10">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+  <link rel="icon" href="data:,">
+  <style>
+    html {font-family: Arial; display: inline-block; text-align: center;}
+    p {  font-size: 1.2rem;}
+    body {  margin: 0;}
+    .topnav { overflow: hidden; background-color: #8f8e54; color: white; font-size: 1.7rem; }
+    .content { padding: 20px; }
+    .card { background-color: white; box-shadow: 2px 2px 12px 1px rgba(140,140,140,.5); }
+    .cards { max-width: 700px; margin: 0 auto; display: grid; grid-gap: 2rem; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+    .reading { font-size: 2.8rem; }
+    .card.temperature { color: #544bd6; }
+    .card.humidity { color: #17bebb; }
+    .card.pressure { color: #d9415f; }
+  </style>
+</head>
+<body>
+  <div class="topnav">
+    <h2><u>Sly's Weather Monitor</u></h2>
+  </div>
+  <div class="content">
+    <div class="cards">
+      <div class="card temperature">
+        <h4><i class="fas fa-thermometer-half"></i>TEMP. Celsius</h4><p><span class="reading">""" + str(avg_temp) + """ &#8451; </p>
+      </div>
+      <div class="card temperature">
+        <h4><i class="fas fa-thermometer-half"></i> TEMP. Fahrenheit</h4><p><span class="reading">""" + str(avg_temp_f) + """ &#8457; </p>
+      </div>
+      <div class="card humidity">
+        <h4><i class="fas fa-mountain"></i> HUMIDITY</h4><p><span class="reading">""" + str(H) + """ %</p>
+      </div>
+      <div class="card pressure">
+        <h4><i class="fas fa-angle-double-down"></i> PRESSURE</h4><p><span class="reading">""" + str(press) + """ Pa</p>
+      </div>
+      <div class="card humidity">
+        <h4><i class="fas fa-mountain"></i> ALTITUDE</h4><p><span class="reading">""" + str(alti) + """ Meter</p>
+      </div>
+      <div class="card humidity">
+        <h4><i class="fas fa-mountain"></i> RAINFALL</h4><p><span class="reading">""" + str(status) + """ </p>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>"""
