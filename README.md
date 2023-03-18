@@ -16,3 +16,7 @@ Altitude: 1479.364 meters
 No rain
 54669
 ```
+
+**Sample output of weatherStation_Web.py**
+
+<img src="img.png">
