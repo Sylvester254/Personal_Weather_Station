@@ -20,7 +20,7 @@ while True:
     # Format the time as a string
     time_str = "{:04}-{:02}-{:02} {:02}:{:02}:{:02}".format(time_tuple[0], time_tuple[1], time_tuple[2], time_tuple[3], time_tuple[4], time_tuple[5])
 
-    print("\n Reading at {} : ".format(time_str))
-    print("Temperature: {} °C".format(T))
-    print("Humidity: {} %".format(H))
-    time.sleep(10)  # wait for 10 seconds before reading again
+    print("\nReading at {} : ".format(time_str))
+    print("\tTemperature: {} °C".format(T))
+    print("\tHumidity: {} %".format(H))
+    time.sleep(5)  # wait for 5 seconds before reading again
