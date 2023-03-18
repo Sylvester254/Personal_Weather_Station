@@ -50,7 +50,7 @@ def web_page():
     alti = "{:.2f}".format(altitude)
     
     avg_temp = (T + temp)/2
-    avg_temp_f= (avg_temp * (9/5) + 32)
+    avg_temp_f= "{:.2f}".format(avg_temp * (9/5) + 32)
     
     adc_Raindrop = Raindrop_AO.read_u16()
     if adc_Raindrop >= 30000:
