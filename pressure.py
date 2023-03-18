@@ -16,7 +16,7 @@ i2c = I2C(0, scl=Pin(17), sda=Pin(16), freq=100000)
 while True:
     #Sensor Configuration
     bmp = BMP180(i2c)
-    bmp.oversample = 5
+    bmp.oversample = 2
     bmp.sealevel = 101325
     
     temp = bmp.temperature

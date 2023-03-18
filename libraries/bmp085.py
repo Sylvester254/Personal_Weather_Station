@@ -46,6 +46,7 @@ class BMP085():
     Module for the BMP085 pressure sensor.
     '''
     # init
+
     def __init__(self, i2c=None):
         # internal module defines
         if i2c is None:
@@ -177,6 +178,8 @@ class BMP085():
         X2 = (-7357 * p) // 65536
         return (p + (X1 + X2 + 3791) // 16) / 100
 
+
+"""
     @property
     def altitude(self):
         '''
@@ -188,6 +191,46 @@ class BMP085():
         except:
             p = 0.0
         return p
+"""
+
+'''
+In this function i've modified, we calculate the temperature at the pressure
+measurement point, and then calculate the pressure at sea level
+using that temperature. Finally, we calculate the altitude using
+the difference in pressure at sea level and the pressure at the
+measurement point, taking into account the temperature variation
+using the temperature lapse rate.
+'''
+
+
+@property
+def altitude(self):
+    '''
+    Altitude in m.
+    '''
+    try:
+        p0 = self._baseline
+        T0 = self._ref_temp
+        L = -0.0065  # temperature lapse rate in K/m
+        R = 287.06  # gas constant of air in J/(kg K)
+        g = 9.80665  # acceleration due to gravity in m/s^2
+
+        T = self.temperature + 273.15  # convert to Kelvin
+        p = self.pressure
+
+        # calculate the temperature at the pressure measurement point
+        h = 44330 * (1 - math.pow(p / p0, 1 / 5.255))
+        T1 = T + L * h
+
+        # calculate the pressure at sea level
+        p1 = p * math.pow((T0 + L * h) / T1, g / (L * R))
+
+        # calculate the altitude
+        altitude = h + (T0 + L * h) / T1 * (p1 - p0) / g
+    except:
+        altitude = 0.0
+
+    return altitude
 
 
 class BMP180(BMP085):

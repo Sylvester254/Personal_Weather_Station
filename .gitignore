@@ -1,0 +1,17 @@
+@property
+    def altitude(self):
+        '''
+        Altitude in m.
+        '''
+        try:
+            temp = self.temperature
+            p = 44330 * (1.0 - math.pow(self.pressure /
+                                        self._baseline, 0.1903)) * math.pow((temp + 273.15) / 288.15, -5.255)
+        except:
+            p = 0.0
+        return p
+        
+
+The main change is in the altitude() method, where we first get the temperature from the temperature() method and use it to calculate the altitude with the pow() function from the math module. This formula takes into account the variation in pressure with temperature, assuming a standard atmosphere. 
+
+i need to read and display values for all the three functions once every 5 seconds:
