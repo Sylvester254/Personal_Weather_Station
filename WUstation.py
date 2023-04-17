@@ -8,9 +8,15 @@ from PicoDHT22 import PicoDHT22
 from bmp085 import BMP180
 import time
 import utime
+import urequests
+import json
+import  math
 
-ssid = "sly" #Your network name
-password = "abcd1234" #Your WiFi password
+#ssid = "sly" #Your network name
+#password = "abcd1234" #Your WiFi password
+
+ssid = "4G MIFI_F19" #Your network name
+password = "123467890" #Your WiFi password
 
 led_onboard = Pin("LED", Pin.OUT)
 i2c = I2C(0, sda = Pin(16), scl = Pin(17), freq = 1000000)
@@ -28,6 +34,37 @@ print('Connection successful')
 print(f'Connected on {ip}')
 led_onboard.value(0)
 
+#Upload to Weather Underground
+def upload_to_wu(temp, humidity, pressure, dew, rainfall):
+    
+    # Build URL for Weather Underground API
+    WUurl = "https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php?"
+    WU_station_id = "*" # PWS ID
+    WU_station_pwd =  "*" # Password
+    WUcreds = "ID=" + WU_station_id + "&PASSWORD="+ WU_station_pwd
+    date_str = "&dateutc=now"
+    action_str = "&action=updateraw"
+    
+    temp_str = temp
+    humidity_str = "{0:.2f}".format(humidity)
+    pressure_str = "{0:.2f}".format(pressure)
+    dewpoint_str = dew
+    rainfall_str = rainfall
+    
+    r= urequests.get(
+        WUurl +
+        WUcreds +
+        date_str +
+        "&tempf=" + temp_str + 
+        "&humidity=" + humidity_str +
+        "&baromin=" + pressure_str +
+        "&dewptf=" + dewpoint_str +
+        "&rainin=" + rainfall_str + 
+        action_str)
+    
+    print("Received " + str(r.status_code) + " " + str(r.text))
+
+# send recorded data to Webpage
 def web_page():
 
     # init DHT22 on Pin 2(GPIO2)
@@ -44,14 +81,26 @@ def web_page():
     
     temp = bmp.temperature
     press = bmp.pressure
-    pressure_in_inches_of_m = press / 3386
+    press_hpa = press * 0.01
+    pressure_inches_of_m = press / 3386
     altitude = bmp.altitude
     temp_f= (temp * (9/5) + 32)
     pressure = "{:.2f}".format(press)
+    press_hpa = "{:.2f}".format(press_hpa)
     alti = "{:.2f}".format(altitude)
     
     avg_temp = (T + temp)/2
     avg_temp_f= "{:.2f}".format(avg_temp * (9/5) + 32)
+    
+    #calculate dewpoint
+    a = 17.27
+    b = 237.7 # °C
+    c = 273.15 # °C
+    
+    alpha = ((a * avg_temp) / (c + avg_temp)) + math.log(H/100.0)
+    dew_point = (b * alpha) / (a - alpha)
+    dewpoint_f= "{:.2f}".format(dew_point * (9/5) + 32)
+
     
     adc_Raindrop = Raindrop_AO.read_u16()
     if adc_Raindrop >= 30000:
@@ -60,7 +109,14 @@ def web_page():
         status = 'Light rain'
     else:
         status = 'Heavy rain'
+   
+   # Calculate rainfall in inches from raindrop sensor reading
+    rainfall_inches = round(adc_Raindrop / 8192.0, 2)
+    rainfall_str = "{:.2f}".format(rainfall_inches)
     
+    print(rainfall_str)
+   
+    upload_to_wu(avg_temp_f, H, pressure_inches_of_m, dewpoint_f, rainfall_str)
 
 #HTML CODE  
     html = """<html lang="en">
@@ -147,7 +203,7 @@ def web_page():
 
 <body>
     <div class="topnav">
-        <h2>Personal Weather Monitor</h2>
+        <h2>Maseno Weather Monitor</h2>
     </div>
     <div class="content">
         <div class="cards">
@@ -165,7 +221,7 @@ def web_page():
             </div>
             <div class="card pressure">
                 <h4><i class="fas fa-angle-double-down"></i> PRESSURE</h4>
-                <p><span class="reading">""" + str(press) + """ Pa</p>
+                <p><span class="reading">""" + str(press_hpa) + """ hPa</p>
             </div>
             <div class="card altitude">
                 <h4><i class="fas fa-mountain"></i> ALTITUDE</h4>
@@ -206,3 +262,4 @@ while True:
   except OSError as e:
     conn.close()
     print('Connection closed')
+

@@ -8,9 +8,18 @@ from PicoDHT22 import PicoDHT22
 from bmp085 import BMP180
 import time
 import utime
+import urequests
+import json
+import  math
+from data_logger import log_data_csv, serve_weather_data
 
-ssid = "sly" #Your network name
-password = "abcd1234" #Your WiFi password
+
+
+#ssid = "sly" #Your network name
+#password = "abcd1234" #Your WiFi password
+
+ssid = "4G MIFI_F19" #Your network name
+password = "123467890" #Your WiFi password
 
 led_onboard = Pin("LED", Pin.OUT)
 i2c = I2C(0, sda = Pin(16), scl = Pin(17), freq = 1000000)
@@ -28,6 +37,37 @@ print('Connection successful')
 print(f'Connected on {ip}')
 led_onboard.value(0)
 
+#Upload to Weather Underground
+def upload_to_wu(temp, humidity, pressure, dew, rainfall):
+    
+    # Build URL for Weather Underground API
+    WUurl = "https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php?"
+    WU_station_id = "*" # PWS ID
+    WU_station_pwd =  "*" # Password
+    WUcreds = "ID=" + WU_station_id + "&PASSWORD="+ WU_station_pwd
+    date_str = "&dateutc=now"
+    action_str = "&action=updateraw"
+    
+    temp_str = temp
+    humidity_str = "{0:.2f}".format(humidity)
+    pressure_str = "{0:.2f}".format(pressure)
+    dewpoint_str = dew
+    rainfall_str = rainfall
+    
+    r= urequests.get(
+        WUurl +
+        WUcreds +
+        date_str +
+        "&tempf=" + temp_str + 
+        "&humidity=" + humidity_str +
+        "&baromin=" + pressure_str +
+        "&dewptf=" + dewpoint_str +
+        "&rainin=" + rainfall_str + 
+        action_str)
+    
+    print("Received " + str(r.status_code) + " " + str(r.text))
+
+# send recorded data to Webpage
 def web_page():
 
     # init DHT22 on Pin 2(GPIO2)
@@ -44,14 +84,26 @@ def web_page():
     
     temp = bmp.temperature
     press = bmp.pressure
-    pressure_in_inches_of_m = press / 3386
+    press_hpa = press * 0.01
+    pressure_inches_of_m = press / 3386
     altitude = bmp.altitude
     temp_f= (temp * (9/5) + 32)
     pressure = "{:.2f}".format(press)
+    press_hpa = "{:.2f}".format(press_hpa)
     alti = "{:.2f}".format(altitude)
     
     avg_temp = (T + temp)/2
     avg_temp_f= "{:.2f}".format(avg_temp * (9/5) + 32)
+    
+    #calculate dewpoint
+    a = 17.27
+    b = 237.7 # °C
+    c = 273.15 # °C
+    
+    alpha = ((a * avg_temp) / (c + avg_temp)) + math.log(H/100.0)
+    dew_point = (b * alpha) / (a - alpha)
+    dewpoint_f= "{:.2f}".format(dew_point * (9/5) + 32)
+
     
     adc_Raindrop = Raindrop_AO.read_u16()
     if adc_Raindrop >= 30000:
@@ -60,18 +112,97 @@ def web_page():
         status = 'Light rain'
     else:
         status = 'Heavy rain'
+   
+   # Calculate rainfall in inches from raindrop sensor reading
+    rainfall_inches = round(adc_Raindrop / 8192.0, 2)
+    rainfall_str = "{:.2f}".format(rainfall_inches)
     
+    #print(rainfall_str)
+   
+    upload_to_wu(avg_temp_f, H, pressure_inches_of_m, dewpoint_f, rainfall_str)
+    
+    timestamp = utime.time()
+    log_data_csv(timestamp, avg_temp, H, press_hpa, alti, status, rainfall_str)
+
+    # create the chart
+    chart_script = """
+    <script>
+      async function fetchData() {
+          const response = await fetch('/weather-data.csv');
+          const csvData = await response.text();
+
+          const parsedData = Papa.parse(csvData, {
+            header: true,
+            dynamicTyping: true,
+            skipEmptyLines: true,
+            transformHeader: header => header.trim()
+          });
+          console.log(parsedData.data);
+          return parsedData.data;
+        }
+
+      async function createChart() {
+        const data = await fetchData();
+        const timestamps = data.map(record => new Date(parseInt(record.timestamp) * 1000));
+        const temperatures = data.map(record => parseFloat(record.temperature));
+
+        const ctx = document.getElementById('weatherChart').getContext('2d');
+        const chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: timestamps,
+            datasets: [
+              {
+                label: 'Temperature',
+                data: temperatures,
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                fill: true,
+              },
+            ],
+          },
+          options: {
+            scales: {
+              x: {
+                type: 'time',
+                display: true,
+                title: {
+                  display: true,
+                  text: 'Time',
+                },
+              },
+              y: {
+                display: true,
+                title: {
+                  display: true,
+                  text: 'Temperature (°C)',
+                },
+              },
+            },
+          },
+        });
+      }
+
+      createChart();
+    </script>
+    """
 
 #HTML CODE  
     html = """<html lang="en">
 
 <head>
     <title>Rasp. Pico W Web Server</title>
-    <meta http-equiv="refresh" content="10">
+    <meta http-equiv="refresh" content="30">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css"
         integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
     <link rel="icon" href="data:,">
+  
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.27.0"></script>
+    <!--<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.1.0"></script>-->
+
     <style>
         html {
             font-family: Arial;
@@ -147,7 +278,7 @@ def web_page():
 
 <body>
     <div class="topnav">
-        <h2>Personal Weather Monitor</h2>
+        <h2>Maseno Weather Monitor</h2>
     </div>
     <div class="content">
         <div class="cards">
@@ -165,7 +296,7 @@ def web_page():
             </div>
             <div class="card pressure">
                 <h4><i class="fas fa-angle-double-down"></i> PRESSURE</h4>
-                <p><span class="reading">""" + str(press) + """ Pa</p>
+                <p><span class="reading">""" + str(press_hpa) + """ hPa</p>
             </div>
             <div class="card altitude">
                 <h4><i class="fas fa-mountain"></i> ALTITUDE</h4>
@@ -176,7 +307,9 @@ def web_page():
                 <p><span class="reading">""" + str(status) + """ </p>
             </div>
         </div>
+        <canvas id="weatherChart" width="400" height="200"></canvas>
     </div>
+      """ + chart_script + """
 </body>
 
 </html>"""
@@ -198,6 +331,14 @@ while True:
     request = str(request)
     print('Content = %s' % request)
     response = web_page()
+    if "/weather-data" in request:
+        response = serve_weather_data()
+        conn.send('HTTP/1.1 200 OK\n')
+        conn.send('Content-Type: application/json\n')
+        conn.send('Connection: close\n\n')
+        conn.sendall(response)
+        conn.close()
+        continue
     conn.send('HTTP/1.1 200 OK\n')
     conn.send('Content-Type: text/html\n')
     conn.send('Connection: close\n\n')
@@ -206,3 +347,5 @@ while True:
   except OSError as e:
     conn.close()
     print('Connection closed')
+
+

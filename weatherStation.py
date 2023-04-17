@@ -38,13 +38,14 @@ def pressure():
         
         temp = bmp.temperature
         press = bmp.pressure
-        altitude = bmp.altitude
+        press_inchmec = press / 3386
+        altitude = bmp.altitude * 3.281 # metres to feet
         temp_f= (temp * (9/5) + 32)
         pressure = "{:.2f}".format(press)
         alti = "{:.2f}".format(altitude)
         
         #time.sleep(10)
-        return temp, temp_f, press, altitude
+        return temp, temp_f, press, press_inchmec, altitude
 
 
 """
@@ -86,8 +87,9 @@ if __name__ == '__main__':
         print('**********BMP180************')
         print("Temperature:  {} °C".format(pressure_val[0]))
         print("Temperature:  {} F".format(pressure_val[1]))
-        print("Atm. Pressure: {} hPa".format(pressure_val[2]))
-        print("Altitude: {} meters".format(pressure_val[3]))
+        print("Atm. Pressure: {} Pa".format(pressure_val[2]))
+        print("Atm. Pressure: {} Inches of mercury".format(pressure_val[3]))
+        print("Altitude: {} feet".format(pressure_val[4]))
         
         adc_Raindrop = rain_val
         
