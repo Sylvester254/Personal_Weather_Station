@@ -41,6 +41,12 @@ Here's a brief overview of the code:
 - Set up the server socket to listen for incoming connections.
 - In the main loop, accept connections, receive requests, and send the generated HTML page as a response.
 
+<img src="weather-underground.png">
+
+<img src="WU.png">
+
 ## WUstation2.py 
 - In this updated version of `WUstation.py`, i have included data logging feature such that the weather data is stored in weather_data.csv every 30 seconds.
 - However this would not be the best approach to do this since the Raspberry pi pico W only has a total of 2MB flash memory which is used to store even the scripts, thus not enough to handle a large csv file.
+
+<img src="weatherdata.png">
